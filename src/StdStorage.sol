@@ -323,6 +323,34 @@ library stdStorage {
         delete self._depth;
     }
 
+    function read_checked_write_slot(StdStorage storage self, bytes32 set) public returns (bytes32) {
+        address who = self._target;
+        bytes4 fsig = self._sig;
+        uint256 field_depth = self._depth;
+        bytes32[] memory ins = self._keys;
+
+        bytes memory cald = abi.encodePacked(fsig, flatten(ins));
+        if (!self.finds[who][fsig][keccak256(abi.encodePacked(ins, field_depth))]) {
+            find(self);
+        }
+        bytes32 slot = bytes32(self.slots[who][fsig][keccak256(abi.encodePacked(ins, field_depth))]);
+
+        bytes32 fdat;
+        {
+            (, bytes memory rdat) = who.staticcall(cald);
+            fdat = bytesToBytes32(rdat, 32 * field_depth);
+        }
+        bytes32 curr = vm.load(who, slot);
+
+        if (fdat != curr) {
+            require(
+                false,
+                "stdStorage find(StdStorage): Packed slot. This would cause dangerous overwriting and currently isn't supported."
+            );
+        }
+        return slot;
+    }
+
     function read_bytes32(StdStorage storage self) internal returns (bytes32) {
         return stdStorageSafe.read_bytes32(self);
     }
